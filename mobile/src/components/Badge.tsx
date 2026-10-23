@@ -5,41 +5,66 @@ import { COLORS, RADIUS, SPACING } from '../constants/theme';
 import { LoanStatus } from '../types';
 
 export interface BadgeProps {
-  status: LoanStatus | 'PENDING';
+  status: LoanStatus | 'PENDING' | 'ACTIVE';
   isOverdue?: boolean;
+  size?: 'sm' | 'md';
   style?: ViewStyle;
 }
 
 export const Badge: React.FC<BadgeProps> = ({
   status,
   isOverdue = false,
+  size = 'md',
   style,
 }) => {
   const isActuallyOverdue = status === 'OVERDUE' || (status === 'UNPAID' && isOverdue);
   const isRepaid = status === 'REPAID';
 
+  const isSmall = size === 'sm';
+
   if (isActuallyOverdue) {
     return (
-      <View style={[styles.badge, styles.badgeOverdue, style]}>
-        <AlertCircle size={12} color={COLORS.overdue} style={styles.icon} />
-        <Text style={[styles.text, styles.textOverdue]}>Overdue</Text>
+      <View
+        style={[
+          styles.badge,
+          styles.badgeOverdue,
+          isSmall && styles.badgeSm,
+          style,
+        ]}
+      >
+        <AlertCircle size={isSmall ? 10 : 12} color={COLORS.overdue} style={styles.icon} />
+        <Text style={[styles.text, styles.textOverdue, isSmall && styles.textSm]}>Overdue</Text>
       </View>
     );
   }
 
   if (isRepaid) {
     return (
-      <View style={[styles.badge, styles.badgeRepaid, style]}>
-        <CheckCircle2 size={12} color={COLORS.repaid} style={styles.icon} />
-        <Text style={[styles.text, styles.textRepaid]}>Repaid</Text>
+      <View
+        style={[
+          styles.badge,
+          styles.badgeRepaid,
+          isSmall && styles.badgeSm,
+          style,
+        ]}
+      >
+        <CheckCircle2 size={isSmall ? 10 : 12} color={COLORS.repaid} style={styles.icon} />
+        <Text style={[styles.text, styles.textRepaid, isSmall && styles.textSm]}>Repaid</Text>
       </View>
     );
   }
 
   return (
-    <View style={[styles.badge, styles.badgePending, style]}>
-      <Clock size={12} color={COLORS.pending} style={styles.icon} />
-      <Text style={[styles.text, styles.textPending]}>Active</Text>
+    <View
+      style={[
+        styles.badge,
+        styles.badgeActive,
+        isSmall && styles.badgeSm,
+        style,
+      ]}
+    >
+      <Clock size={isSmall ? 10 : 12} color={COLORS.primary} style={styles.icon} />
+      <Text style={[styles.text, styles.textActive, isSmall && styles.textSm]}>Active</Text>
     </View>
   );
 };
@@ -54,14 +79,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignSelf: 'flex-start',
   },
+  badgeSm: {
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+  },
   icon: {
     marginRight: 4,
   },
   text: {
     fontSize: 11,
     fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+  },
+  textSm: {
+    fontSize: 10,
   },
   badgeOverdue: {
     backgroundColor: COLORS.overdueBg,
@@ -77,11 +108,11 @@ const styles = StyleSheet.create({
   textRepaid: {
     color: COLORS.repaid,
   },
-  badgePending: {
-    backgroundColor: COLORS.pendingBg,
-    borderColor: COLORS.pendingBorder,
+  badgeActive: {
+    backgroundColor: COLORS.primaryLight,
+    borderColor: COLORS.primaryBorder,
   },
-  textPending: {
-    color: COLORS.pending,
+  textActive: {
+    color: COLORS.primary,
   },
 });

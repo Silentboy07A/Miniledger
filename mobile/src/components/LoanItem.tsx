@@ -1,23 +1,27 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { ChevronRight, Calendar, User as UserIcon } from 'lucide-react-native';
+import { ChevronRight, Calendar, AlertTriangle } from 'lucide-react-native';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '../constants/theme';
 import { Loan } from '../types';
-import { formatDate, formatINR, isLoanOverdue } from '../utils/formatters';
+import {
+  formatDate,
+  formatINR,
+  getFriendInitials,
+  getRelativeDueString,
+  isLoanOverdue,
+} from '../utils/formatters';
 import { Badge } from './Badge';
 
 export interface LoanItemProps {
   loan: Loan;
   onPress: () => void;
-  onQuickRepay?: () => void;
 }
 
-export const LoanItem: React.FC<LoanItemProps> = ({
-  loan,
-  onPress,
-}) => {
+export const LoanItem: React.FC<LoanItemProps> = ({ loan, onPress }) => {
   const isOverdue = isLoanOverdue(loan.dueDate, loan.status);
   const isRepaid = loan.status === 'REPAID';
+  const relative = getRelativeDueString(loan.dueDate, loan.status);
+  const initials = getFriendInitials(loan.friendName);
 
   return (
     <TouchableOpacity
@@ -27,13 +31,21 @@ export const LoanItem: React.FC<LoanItemProps> = ({
         styles.container,
         SHADOWS.card,
         isOverdue && styles.overdueContainer,
+        isRepaid && styles.repaidContainer,
       ]}
     >
-      {/* Left accent bar for overdue loans */}
-      {isOverdue && <View style={styles.overdueBar} />}
+      {/* Left accent bar */}
+      <View
+        style={[
+          styles.statusAccentBar,
+          isOverdue && styles.overdueAccentBar,
+          isRepaid && styles.repaidAccentBar,
+        ]}
+      />
 
       <View style={styles.content}>
-        <View style={styles.headerRow}>
+        <View style={styles.mainRow}>
+          {/* Friend info & avatar */}
           <View style={styles.friendInfo}>
             <View
               style={[
@@ -42,30 +54,42 @@ export const LoanItem: React.FC<LoanItemProps> = ({
                 isRepaid && styles.avatarRepaid,
               ]}
             >
-              <UserIcon
-                size={16}
-                color={
-                  isOverdue
-                    ? COLORS.overdue
-                    : isRepaid
-                    ? COLORS.repaid
-                    : COLORS.primary
-                }
-              />
+              <Text
+                style={[
+                  styles.avatarInitials,
+                  isOverdue && styles.avatarInitialsOverdue,
+                  isRepaid && styles.avatarInitialsRepaid,
+                ]}
+              >
+                {initials}
+              </Text>
             </View>
-            <View>
+
+            <View style={styles.nameBlock}>
               <Text style={styles.friendName} numberOfLines={1}>
                 {loan.friendName}
               </Text>
               <View style={styles.dateRow}>
                 <Calendar size={12} color={COLORS.textSecondary} style={styles.dateIcon} />
-                <Text style={styles.dueDateText}>
-                  {isRepaid ? 'Settled' : 'Due'}: {formatDate(loan.dueDate)}
+                <Text style={styles.dateText}>
+                  {isRepaid ? 'Settled: ' : 'Due: '}
+                  {formatDate(loan.dueDate)}
+                </Text>
+                <Text style={styles.dateDot}>•</Text>
+                <Text
+                  style={[
+                    styles.relativeText,
+                    relative.isOverdue && styles.relativeTextOverdue,
+                    isRepaid && styles.relativeTextRepaid,
+                  ]}
+                >
+                  {relative.text}
                 </Text>
               </View>
             </View>
           </View>
 
+          {/* Amount & Status Badge */}
           <View style={styles.amountContainer}>
             <Text
               style={[
@@ -76,14 +100,15 @@ export const LoanItem: React.FC<LoanItemProps> = ({
             >
               {formatINR(loan.amount)}
             </Text>
-            <Badge status={loan.status} isOverdue={isOverdue} />
+            <Badge status={loan.status} isOverdue={isOverdue} size="sm" />
           </View>
         </View>
 
         {isOverdue && (
-          <View style={styles.overdueNoticeBox}>
-            <Text style={styles.overdueNoticeText}>
-              Payment overdue — due on {formatDate(loan.dueDate)}
+          <View style={styles.overdueCallout}>
+            <AlertTriangle size={12} color={COLORS.overdue} style={styles.calloutIcon} />
+            <Text style={styles.overdueCalloutText}>
+              Payment overdue — was expected on {formatDate(loan.dueDate)}
             </Text>
           </View>
         )}
@@ -101,7 +126,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm + 4,
     borderWidth: 1,
     borderColor: COLORS.border,
     flexDirection: 'row',
@@ -111,71 +136,123 @@ const styles = StyleSheet.create({
   },
   overdueContainer: {
     borderColor: COLORS.overdueBorder,
-    backgroundColor: '#FFFBFB',
+    backgroundColor: '#FFFAFA',
   },
-  overdueBar: {
+  repaidContainer: {
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
+    opacity: 0.92,
+  },
+  statusAccentBar: {
     position: 'absolute',
     left: 0,
     top: 0,
     bottom: 0,
-    width: 4,
+    width: 3.5,
+    backgroundColor: COLORS.primary,
+  },
+  overdueAccentBar: {
     backgroundColor: COLORS.overdue,
+  },
+  repaidAccentBar: {
+    backgroundColor: COLORS.repaid,
   },
   content: {
     flex: 1,
+    paddingLeft: SPACING.xs,
     paddingRight: SPACING.xs,
   },
-  headerRow: {
+  mainRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   friendInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    marginRight: SPACING.sm,
   },
   avatarCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: COLORS.primaryLight,
+    borderWidth: 1,
+    borderColor: COLORS.primaryBorder,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: SPACING.sm + 2,
+    marginRight: SPACING.sm + 4,
   },
   avatarOverdue: {
     backgroundColor: COLORS.overdueBg,
+    borderColor: COLORS.overdueBorder,
   },
   avatarRepaid: {
     backgroundColor: COLORS.repaidBg,
+    borderColor: COLORS.repaidBorder,
+  },
+  avatarInitials: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: COLORS.primary,
+    letterSpacing: 0.5,
+  },
+  avatarInitialsOverdue: {
+    color: COLORS.overdue,
+  },
+  avatarInitialsRepaid: {
+    color: COLORS.repaid,
+  },
+  nameBlock: {
+    flex: 1,
   },
   friendName: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: COLORS.navy,
+    letterSpacing: -0.2,
     marginBottom: 2,
   },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
   },
   dateIcon: {
     marginRight: 4,
   },
-  dueDateText: {
+  dateText: {
     fontSize: 12,
     color: COLORS.textSecondary,
     fontWeight: '500',
   },
+  dateDot: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginHorizontal: 4,
+  },
+  relativeText: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+  },
+  relativeTextOverdue: {
+    color: COLORS.overdue,
+    fontWeight: '700',
+  },
+  relativeTextRepaid: {
+    color: COLORS.repaid,
+  },
   amountContainer: {
     alignItems: 'flex-end',
-    marginLeft: SPACING.sm,
+    minWidth: 90,
   },
   amountText: {
     fontSize: 16,
     fontWeight: '800',
     color: COLORS.navy,
+    letterSpacing: -0.4,
     marginBottom: 4,
   },
   repaidAmountText: {
@@ -184,15 +261,20 @@ const styles = StyleSheet.create({
   overdueAmountText: {
     color: COLORS.overdue,
   },
-  overdueNoticeBox: {
-    marginTop: SPACING.sm,
+  overdueCallout: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.overdueBg,
-    paddingVertical: 4,
+    paddingVertical: 3,
     paddingHorizontal: SPACING.sm,
-    borderRadius: RADIUS.sm,
+    borderRadius: RADIUS.xs,
+    marginTop: SPACING.xs + 2,
     alignSelf: 'flex-start',
   },
-  overdueNoticeText: {
+  calloutIcon: {
+    marginRight: 4,
+  },
+  overdueCalloutText: {
     fontSize: 11,
     color: COLORS.overdue,
     fontWeight: '600',
