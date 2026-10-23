@@ -6,6 +6,7 @@ import { formatINR } from '../utils/formatters';
 export interface SummaryCardProps {
   title: string;
   amount: number;
+  subtitle?: string;
   variant?: 'primary' | 'success' | 'danger';
   icon?: React.ReactNode;
 }
@@ -13,6 +14,7 @@ export interface SummaryCardProps {
 export const SummaryCard: React.FC<SummaryCardProps> = ({
   title,
   amount,
+  subtitle,
   variant = 'primary',
   icon,
 }) => {
@@ -20,22 +22,28 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({
     switch (variant) {
       case 'success':
         return {
-          textColor: COLORS.repaid,
+          textColor: COLORS.navy,
+          amountColor: COLORS.repaid,
           accentColor: COLORS.repaid,
           bgColor: COLORS.repaidBg,
+          borderColor: COLORS.repaidBorder,
         };
       case 'danger':
         return {
-          textColor: COLORS.overdue,
+          textColor: COLORS.navy,
+          amountColor: COLORS.overdue,
           accentColor: COLORS.overdue,
           bgColor: COLORS.overdueBg,
+          borderColor: COLORS.overdueBorder,
         };
       case 'primary':
       default:
         return {
           textColor: COLORS.navy,
+          amountColor: COLORS.navy,
           accentColor: COLORS.primary,
           bgColor: COLORS.primaryLight,
+          borderColor: COLORS.primaryBorder,
         };
     }
   };
@@ -52,13 +60,21 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({
           </View>
         )}
       </View>
+
       <Text
-        style={[styles.amount, { color: theme.textColor }]}
+        style={[styles.amount, { color: theme.amountColor }]}
         numberOfLines={1}
         adjustsFontSizeToFit
       >
         {formatINR(amount)}
       </Text>
+
+      {subtitle && (
+        <Text style={styles.subtitle} numberOfLines={1}>
+          {subtitle}
+        </Text>
+      )}
+
       <View style={[styles.indicator, { backgroundColor: theme.accentColor }]} />
     </View>
   );
@@ -71,7 +87,7 @@ const styles = StyleSheet.create({
     padding: SPACING.md + 2,
     borderWidth: 1,
     borderColor: COLORS.border,
-    minHeight: 104,
+    minHeight: 110,
     justifyContent: 'space-between',
     position: 'relative',
     overflow: 'hidden',
@@ -84,29 +100,34 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.textSecondary,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   iconWrapper: {
-    width: 28,
-    height: 28,
+    width: 30,
+    height: 30,
     borderRadius: RADIUS.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   amount: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
     marginVertical: SPACING.xs,
+  },
+  subtitle: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    fontWeight: '500',
   },
   indicator: {
     position: 'absolute',
     left: 0,
     top: 0,
     bottom: 0,
-    width: 4,
+    width: 3.5,
   },
 });

@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Wallet } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types';
-import { COLORS } from '../constants/theme';
+import { COLORS, RADIUS, SHADOWS } from '../constants/theme';
 
 // Screens
 import { LoginScreen } from '../screens/LoginScreen';
@@ -22,9 +22,10 @@ export const RootNavigator: React.FC = () => {
     return (
       <View style={styles.splashContainer}>
         <View style={styles.logoBadge}>
-          <Wallet size={36} color={COLORS.white} />
+          <Wallet size={32} color={COLORS.white} strokeWidth={2.2} />
         </View>
         <Text style={styles.splashTitle}>MiniLedger</Text>
+        <Text style={styles.splashSubtitle}>Loading your ledger...</Text>
         <ActivityIndicator
           size="small"
           color={COLORS.primary}
@@ -68,19 +69,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoBadge: {
-    width: 68,
-    height: 68,
-    borderRadius: 20,
+    width: 64,
+    height: 64,
+    borderRadius: RADIUS.xl,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
+    ...SHADOWS.raised,
   },
   splashTitle: {
     fontSize: 24,
     fontWeight: '800',
     color: COLORS.navy,
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
+  },
+  splashSubtitle: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginTop: 4,
   },
   spinner: {
     marginTop: 24,

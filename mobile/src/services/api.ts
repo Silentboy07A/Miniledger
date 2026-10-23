@@ -1,201 +1,150 @@
+
 import { API_CONFIG } from '../constants/config';
-import { FinancialSummary, Loan, SendOtpResponse, AuthResponse } from '../types';
 import { storage } from './storage';
+import type { FinancialSummary, Loan } from '../types';
 
-let currentApiBaseUrl = API_CONFIG.BASE_URL;
-
-export const setApiBaseUrl = (url: string) => {
-  currentApiBaseUrl = url.trim().replace(/\/+$/, '');
+type ApiResponse<T = any> = {
+  success?: boolean;
+  message?: string;
+  data?: T;
+  token?: string;
+  user?: any;
+  loan?: any;
+  loans?: any[];
+  summary?: FinancialSummary;
 };
 
-export const getApiBaseUrl = () => currentApiBaseUrl;
-
-class ApiError extends Error {
-  status?: number;
-  data?: any;
-
-  constructor(message: string, status?: number, data?: any) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-    this.data = data;
-  }
+export function getApiBaseUrl(): string {
+  return API_CONFIG.BASE_URL;
 }
 
-const request = async <T>(
+export function setApiBaseUrl(url: string): void {
+  (API_CONFIG as { BASE_URL: string }).BASE_URL = url.trim().replace(/\/+$/, '');
+}
+
+async function request<T = any>(
   endpoint: string,
-  options: RequestInit = {}
-): Promise<T> => {
-  const url = `${currentApiBaseUrl}${endpoint}`;
+  options: RequestInit = {},
+): Promise<T> {
   const token = await storage.getToken();
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    ...(options.headers as Record<string, string>),
-  };
+  const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+  });
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  const result = await response.json().catch(() => ({}));
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers,
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    const text = await response.text();
-    let data: any;
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch {
-      data = { raw: text };
-    }
-
-    if (!response.ok) {
-      const message =
-        data?.message ||
-        data?.error ||
-        `Request failed with status ${response.status} (${response.statusText})`;
-      throw new ApiError(message, response.status, data);
-    }
-
-    return data as T;
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new ApiError(`Network timeout: unable to reach server at ${currentApiBaseUrl}. Verify server is running and accessible.`);
-    }
-    if (error instanceof ApiError) {
-      throw error;
-    }
-    throw new ApiError(
-      `Unable to connect to backend server at ${currentApiBaseUrl}. Check network connection and server status.`
+  if (!response.ok) {
+    throw new Error(
+      result?.message || result?.error || `Request failed (${response.status})`,
     );
   }
-};
+
+  return result as T;
+}
+
+function mapLoan(item: any): Loan {
+  const repaid = Boolean(item.repaidAt ?? item.repaid_at);
+  const dueDate = item.dueDate ?? item.due_date;
+  const dueTimestamp = dueDate ? new Date(dueDate).getTime() : NaN;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const overdue =
+    Boolean(item.overdue) ||
+    (!repaid && Number.isFinite(dueTimestamp) && dueTimestamp < today.getTime());
+
+  return {
+    id: String(item.id),
+    friendName: item.friendName ?? item.friend_name ?? '',
+    amount: Number(item.amount) || 0,
+    dueDate,
+    status: repaid ? 'REPAID' : overdue ? 'OVERDUE' : 'UNPAID',
+    createdAt: item.createdAt ?? item.created_at ?? new Date().toISOString(),
+    repaidAt: item.repaidAt ?? item.repaid_at ?? null,
+    notes: item.notes ?? '',
+  } as Loan;
+}
 
 export const api = {
-  /**
-   * Check backend health status
-   */
-  async checkHealth(): Promise<{ success: boolean; message: string }> {
-    return request<{ success: boolean; message: string }>('/health', {
-      method: 'GET',
-    });
-  },
-
-  /**
-   * Request OTP for a phone number
-   */
-  async sendOtp(phone: string): Promise<SendOtpResponse> {
-    return request<SendOtpResponse>('/auth/send-otp', {
+  async sendOtp(phone: string): Promise<ApiResponse> {
+    return request<ApiResponse>('/auth/request-otp', {
       method: 'POST',
       body: JSON.stringify({ phone }),
     });
   },
 
-  /**
-   * Verify OTP entered by user
-   */
-  async verifyOtp(phone: string, otp: string): Promise<AuthResponse> {
-    return request<AuthResponse>('/auth/verify-otp', {
+  async verifyOtp(phone: string, otp: string): Promise<ApiResponse> {
+    return request<ApiResponse>('/auth/verify-otp', {
       method: 'POST',
       body: JSON.stringify({ phone, otp }),
     });
   },
 
-  /**
-   * Fetch financial summary (Total Lent, Repaid, Overdue)
-   */
   async getSummary(): Promise<FinancialSummary> {
-    const response = await request<any>('/summary', {
-      method: 'GET',
-    });
+    const response = await request<ApiResponse<FinancialSummary>>(
+      '/loans/summary',
+      { method: 'GET' },
+    );
 
-    // Handle both { data: { ... } } and direct { totalLent: ... } formats
-    const payload = response?.data || response;
+    const payload = response?.summary ?? response?.data ?? response;
+
     return {
-      totalLent: Number(payload?.totalLent) || 0,
-      totalRepaid: Number(payload?.totalRepaid) || 0,
-      overdueAmount: Number(payload?.overdueAmount) || 0,
+      totalLent: Number((payload as any)?.totalLent) || 0,
+      totalRepaid: Number((payload as any)?.totalRepaid) || 0,
+      overdueAmount: Number((payload as any)?.overdueAmount) || 0,
     };
   },
 
-  /**
-   * Fetch all loans for current user
-   */
   async getLoans(): Promise<Loan[]> {
-    const response = await request<any>('/loans', {
+    const response = await request<ApiResponse>('/loans', {
       method: 'GET',
     });
 
-    const loansList: any[] = Array.isArray(response)
-      ? response
+    const loansList: any[] = Array.isArray(response?.loans)
+      ? response.loans
       : Array.isArray(response?.data)
-      ? response.data
-      : [];
+        ? response.data
+        : Array.isArray(response)
+          ? (response as any)
+          : [];
 
-    return loansList.map((item) => ({
-      id: String(item.id || item._id),
-      friendName: String(item.friendName || item.friend_name || ''),
-      amount: Number(item.amount) || 0,
-      dueDate: String(item.dueDate || item.due_date || ''),
-      status: (item.status?.toUpperCase() || 'UNPAID') as Loan['status'],
-      createdAt: item.createdAt || item.created_at,
-      repaidAt: item.repaidAt || item.repaid_at,
-      notes: item.notes,
-    }));
+    return loansList.map(mapLoan);
   },
 
-  /**
-   * Create a new loan record
-   */
   async createLoan(data: {
     friendName: string;
     amount: number;
     dueDate: string;
     notes?: string;
   }): Promise<Loan> {
-    const response = await request<any>('/loans', {
+    const response = await request<ApiResponse>('/loans', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        friendName: data.friendName,
+        amount: data.amount,
+        dueDate: data.dueDate,
+        notes: data.notes,
+      }),
     });
 
-    const item = response?.data || response;
-    return {
-      id: String(item.id || item._id || Date.now()),
-      friendName: String(item.friendName || item.friend_name || data.friendName),
-      amount: Number(item.amount) || data.amount,
-      dueDate: String(item.dueDate || item.due_date || data.dueDate),
-      status: (item.status?.toUpperCase() || 'UNPAID') as Loan['status'],
-      createdAt: item.createdAt || new Date().toISOString(),
-      notes: item.notes,
-    };
+    const item = response?.loan ?? response?.data ?? response;
+
+    return mapLoan(item);
   },
 
-  /**
-   * Mark a loan as repaid
-   */
   async repayLoan(id: string): Promise<Loan> {
-    const response = await request<any>(`/loans/${id}/repay`, {
+    const response = await request<ApiResponse>(`/loans/${id}/repay`, {
       method: 'PATCH',
     });
 
-    const item = response?.data || response;
-    return {
-      id: String(item.id || id),
-      friendName: String(item.friendName || ''),
-      amount: Number(item.amount) || 0,
-      dueDate: String(item.dueDate || ''),
-      status: 'REPAID',
-      repaidAt: item.repaidAt || new Date().toISOString(),
-    };
+    const item = response?.loan ?? response?.data ?? response;
+
+    return mapLoan(item);
   },
 };
