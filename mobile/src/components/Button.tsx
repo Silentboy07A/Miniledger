@@ -57,7 +57,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   return (
     <TouchableOpacity
-      activeOpacity={0.8}
+      activeOpacity={0.75}
       disabled={!isInteractive}
       style={containerStyles}
       {...rest}
@@ -94,16 +94,19 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xs + 2,
     paddingHorizontal: SPACING.md,
     minHeight: 36,
+    borderRadius: RADIUS.sm,
   },
   size_md: {
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.xl,
-    minHeight: 48,
+    paddingVertical: SPACING.md - 2,
+    paddingHorizontal: SPACING.lg,
+    minHeight: 46,
+    borderRadius: RADIUS.md,
   },
   size_lg: {
-    paddingVertical: SPACING.lg - 2,
-    paddingHorizontal: SPACING.xxl,
-    minHeight: 54,
+    paddingVertical: SPACING.md + 2,
+    paddingHorizontal: SPACING.xl,
+    minHeight: 52,
+    borderRadius: RADIUS.lg,
   },
   btnPrimary: {
     backgroundColor: COLORS.primary,
@@ -114,7 +117,7 @@ const styles = StyleSheet.create({
   btnOutline: {
     backgroundColor: COLORS.white,
     borderWidth: 1.5,
-    borderColor: COLORS.primary,
+    borderColor: COLORS.borderDark,
   },
   btnDanger: {
     backgroundColor: COLORS.overdue,
@@ -123,27 +126,29 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.transparent,
   },
   btnDisabled: {
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.backgroundSecondary,
+    borderWidth: 1,
     borderColor: COLORS.border,
   },
   text: {
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
+    letterSpacing: -0.2,
   },
   textSize_sm: {
     fontSize: 13,
   },
   textSize_md: {
-    fontSize: 15,
+    fontSize: 14,
   },
   textSize_lg: {
-    fontSize: 16,
+    fontSize: 15,
   },
   textLight: {
     color: COLORS.white,
   },
   textOutline: {
-    color: COLORS.primary,
+    color: COLORS.navy,
   },
   textGhost: {
     color: COLORS.primary,

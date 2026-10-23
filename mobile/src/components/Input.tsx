@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -44,7 +45,11 @@ export const Input: React.FC<InputProps> = ({
         {prefix && <View style={styles.prefixContainer}>{prefix}</View>}
         <TextInput
           placeholderTextColor={COLORS.textMuted}
-          style={[styles.input, style]}
+          style={[
+            styles.input,
+            Platform.OS === 'web' && ({ outlineStyle: 'none' } as any),
+            style,
+          ]}
           editable={editable}
           onFocus={(e) => {
             setIsFocused(true);
@@ -69,15 +74,15 @@ export const Input: React.FC<InputProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.md + 2,
     width: '100%',
   },
   label: {
     fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.xs + 2,
-    letterSpacing: 0.2,
+    fontWeight: '700',
+    color: COLORS.navy,
+    marginBottom: 6,
+    letterSpacing: -0.1,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -91,12 +96,15 @@ const styles = StyleSheet.create({
   },
   wrapperFocused: {
     borderColor: COLORS.primary,
+    backgroundColor: COLORS.white,
   },
   wrapperError: {
     borderColor: COLORS.overdue,
+    backgroundColor: COLORS.overdueBg,
   },
   wrapperDisabled: {
     backgroundColor: COLORS.inputDisabled,
+    borderColor: COLORS.border,
   },
   prefixContainer: {
     marginRight: SPACING.sm,
@@ -113,16 +121,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.textPrimary,
     paddingVertical: SPACING.sm,
+    fontWeight: '500',
   },
   errorText: {
     fontSize: 12,
     color: COLORS.overdue,
-    marginTop: SPACING.xs,
-    fontWeight: '500',
+    marginTop: 5,
+    fontWeight: '600',
   },
   helperText: {
     fontSize: 12,
     color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
+    marginTop: 5,
+    lineHeight: 16,
   },
 });

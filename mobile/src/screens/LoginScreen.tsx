@@ -8,28 +8,40 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { z } from 'zod';
-import { ArrowRight, ShieldCheck, Wallet, Settings } from 'lucide-react-native';
+import {
+  ArrowRight,
+  ShieldCheck,
+  Wallet,
+  Settings,
+  Users,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+} from 'lucide-react-native';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card } from '../components/Card';
-import { COLORS, RADIUS, SPACING } from '../constants/theme';
+import { COLORS, RADIUS, SHADOWS, SPACING } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import { api, getApiBaseUrl, setApiBaseUrl } from '../services/api';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
-// Phone number validation schema with Zod
 const phoneSchema = z.object({
   phone: z
     .string()
     .trim()
-    .regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit Indian mobile number'),
+    .regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit Indian mobile number starting with 6-9'),
 });
 
 export const LoginScreen: React.FC<Props> = ({ navigation }) => {
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 820;
+
   const [phone, setPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -41,7 +53,6 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
     setError(null);
     setServerError(null);
 
-    // Validate using Zod
     const validation = phoneSchema.safeParse({ phone });
     if (!validation.success) {
       setError(validation.error.issues[0]?.message || 'Invalid phone number');
@@ -49,25 +60,34 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
     }
 
     setLoading(true);
+
     const fullPhone = `+91${phone.trim()}`;
 
     try {
-      const response = await api.sendOtp(fullPhone);
-      setLoading(false);
-
-      // Successfully initiated OTP flow
+      await api.sendOtp(fullPhone);
       navigation.navigate('OtpVerify', { phone: fullPhone });
     } catch (err: any) {
-      setLoading(false);
       setServerError(
-        err.message || 'Failed to send OTP. Please ensure the backend is running.'
+        err?.message ||
+          'Failed to connect to backend server. Make sure the backend is running at http://localhost:3000.'
       );
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSaveApiUrl = () => {
-    setApiBaseUrl(customApiUrl);
+    const url = customApiUrl.trim().replace(/\/+$/, '');
+
+    if (!/^https?:\/\/.+/i.test(url)) {
+      setServerError('Enter a valid API URL starting with http:// or https://');
+      return;
+    }
+
+    setApiBaseUrl(url);
+    setCustomApiUrl(url);
     setShowConfig(false);
+    setServerError(null);
   };
 
   return (
@@ -77,108 +97,183 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
         style={styles.keyboardView}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            isDesktop && styles.desktopScrollContent,
+          ]}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Brand Header */}
-          <View style={styles.brandContainer}>
-            <View style={styles.logoBadge}>
-              <Wallet size={32} color={COLORS.white} />
-            </View>
-            <Text style={styles.brandTitle}>MiniLedger</Text>
-            <Text style={styles.tagline}>Your money, clearly tracked.</Text>
-            <Text style={styles.subtext}>
-              Keep seamless tabs on money lent to friends, track timely repayments,
-              and avoid overdue balances.
-            </Text>
-          </View>
-
-          {/* Form Card */}
-          <Card elevated style={styles.card}>
-            <Text style={styles.cardTitle}>Sign in to your ledger</Text>
-            <Text style={styles.cardSubtitle}>
-              We will send a 6-digit verification code to your phone number.
-            </Text>
-
-            {serverError && (
-              <View style={styles.serverErrorBox}>
-                <Text style={styles.serverErrorText}>{serverError}</Text>
-              </View>
-            )}
-
-            <Input
-              label="Phone Number"
-              placeholder="98765 43210"
-              keyboardType="phone-pad"
-              maxLength={10}
-              value={phone}
-              onChangeText={(text) => {
-                const cleaned = text.replace(/[^0-9]/g, '');
-                setPhone(cleaned);
-                if (error) setError(null);
-                if (serverError) setServerError(null);
-              }}
-              prefix={
-                <View style={styles.countryCode}>
-                  <Text style={styles.countryCodeText}>🇮🇳 +91</Text>
-                </View>
-              }
-              error={error || undefined}
-              helperText="Indian mobile numbers (+91)"
-            />
-
-            <Button
-              title="Send Verification Code"
-              size="lg"
-              loading={loading}
-              onPress={handleSendOtp}
-              rightIcon={<ArrowRight size={18} color={COLORS.white} />}
-              style={styles.sendButton}
-            />
-
-            {/* Mock OTP Explanation Banner */}
-            <View style={styles.mockOtpNotice}>
-              <View style={styles.mockOtpHeader}>
-                <ShieldCheck size={16} color={COLORS.primary} style={styles.noticeIcon} />
-                <Text style={styles.mockOtpTitle}>Mock OTP Verification</Text>
-              </View>
-              <Text style={styles.mockOtpDescription}>
-                MiniLedger runs in assignment development mode. When you press Send, the
-                OTP is generated and printed in your backend server logs.
-              </Text>
-            </View>
-          </Card>
-
-          {/* Server Settings Toggle */}
-          <View style={styles.settingsSection}>
-            <TouchableOpacity
-              onPress={() => setShowConfig(!showConfig)}
-              style={styles.settingsToggle}
+          <View
+            style={[
+              styles.container,
+              isDesktop && styles.desktopContainer,
+            ]}
+          >
+            {/* Left Hero / Brand Introduction */}
+            <View
+              style={[
+                styles.brandSection,
+                isDesktop && styles.desktopBrandSection,
+              ]}
             >
-              <Settings size={14} color={COLORS.textSecondary} />
-              <Text style={styles.settingsToggleText}>
-                {showConfig ? 'Hide Server Configuration' : 'Server Configuration'}
-              </Text>
-            </TouchableOpacity>
-
-            {showConfig && (
-              <View style={styles.configBox}>
-                <Input
-                  label="API Server URL"
-                  value={customApiUrl}
-                  onChangeText={setCustomApiUrl}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  helperText="Default: 10.0.2.2:3000 (Android) or localhost:3000 (iOS)"
-                />
-                <Button
-                  title="Apply API URL"
-                  variant="outline"
-                  size="sm"
-                  onPress={handleSaveApiUrl}
-                />
+              <View style={styles.logoBadge}>
+                <Wallet size={28} color={COLORS.white} strokeWidth={2.2} />
               </View>
-            )}
+
+              <Text style={styles.brandTitle}>MiniLedger</Text>
+              <Text style={styles.tagline}>
+                Personal lending, simplified and clear.
+              </Text>
+              <Text style={styles.subtext}>
+                Track loans lent to friends, manage repayment due dates, and monitor overdue
+                balances with confidence.
+              </Text>
+
+              {isDesktop && (
+                <View style={styles.featureList}>
+                  <View style={styles.featureItem}>
+                    <View style={styles.featureIconBox}>
+                      <Users size={18} color={COLORS.primary} />
+                    </View>
+                    <View style={styles.featureContent}>
+                      <Text style={styles.featureTitle}>Track Friends & Balances</Text>
+                      <Text style={styles.featureDesc}>
+                        Keep an organized record of who borrowed how much and when.
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.featureItem}>
+                    <View style={styles.featureIconBox}>
+                      <Clock size={18} color={COLORS.primary} />
+                    </View>
+                    <View style={styles.featureContent}>
+                      <Text style={styles.featureTitle}>Due Date Vigilance</Text>
+                      <Text style={styles.featureDesc}>
+                        Automatic overdue detection keeps timelines accountable.
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.featureItem}>
+                    <View style={styles.featureIconBox}>
+                      <CheckCircle2 size={18} color={COLORS.primary} />
+                    </View>
+                    <View style={styles.featureContent}>
+                      <Text style={styles.featureTitle}>One-Tap Settlement</Text>
+                      <Text style={styles.featureDesc}>
+                        Mark loans as settled and watch your repaid metrics update instantly.
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Right Login Card */}
+            <View
+              style={[
+                styles.formSection,
+                isDesktop && styles.desktopFormSection,
+              ]}
+            >
+              <Card elevated style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.eyebrowContainer}>
+                    <View style={styles.eyebrowDot} />
+                    <Text style={styles.eyebrowText}>MINILEDGER SECURE LOGIN</Text>
+                  </View>
+                  <Text style={styles.cardTitle}>Sign in to your ledger</Text>
+                  <Text style={styles.cardSubtitle}>
+                    Enter your 10-digit mobile number. We'll send a 6-digit verification code.
+                  </Text>
+                </View>
+
+                {serverError && (
+                  <View style={styles.serverErrorBox}>
+                    <AlertCircle size={16} color={COLORS.overdue} style={styles.alertIcon} />
+                    <Text style={styles.serverErrorText}>{serverError}</Text>
+                  </View>
+                )}
+
+                <Input
+                  label="Mobile Number"
+                  placeholder="98765 43210"
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  value={phone}
+                  onChangeText={(text) => {
+                    setPhone(text.replace(/[^0-9]/g, '').slice(0, 10));
+                    if (error) setError(null);
+                    if (serverError) setServerError(null);
+                  }}
+                  prefix={
+                    <View style={styles.countryCodeBadge}>
+                      <Text style={styles.countryFlag}>IN</Text>
+                      <Text style={styles.countryCodeText}>+91</Text>
+                    </View>
+                  }
+                  error={error || undefined}
+                  helperText="Enter 10-digit Indian phone number"
+                />
+
+                <Button
+                  title="Send Verification Code"
+                  size="lg"
+                  loading={loading}
+                  onPress={handleSendOtp}
+                  rightIcon={<ArrowRight size={18} color={COLORS.white} />}
+                  style={styles.sendButton}
+                />
+
+                <View style={styles.devNoticeCard}>
+                  <View style={styles.devNoticeHeader}>
+                    <ShieldCheck size={16} color={COLORS.primary} />
+                    <Text style={styles.devNoticeTitle}>Development Demonstration</Text>
+                  </View>
+                  <Text style={styles.devNoticeText}>
+                    Mock OTP verification enabled. After clicking Send, check your backend
+                    terminal/console for the 6-digit code.
+                  </Text>
+                </View>
+              </Card>
+
+              {/* Server settings toggle for development flexibility */}
+              <TouchableOpacity
+                onPress={() => setShowConfig((curr) => !curr)}
+                style={styles.configToggle}
+                activeOpacity={0.7}
+              >
+                <Settings size={13} color={COLORS.textSecondary} />
+                <Text style={styles.configToggleText}>
+                  {showConfig ? 'Hide API settings' : 'Configure API endpoint'}
+                </Text>
+              </TouchableOpacity>
+
+              {showConfig && (
+                <Card style={styles.configCard}>
+                  <Input
+                    label="Backend API Base URL"
+                    value={customApiUrl}
+                    onChangeText={setCustomApiUrl}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="url"
+                    helperText="Default: http://localhost:3000 (or 10.0.2.2 for Android emulator)"
+                  />
+                  <Button
+                    title="Apply Endpoint"
+                    variant="outline"
+                    size="sm"
+                    onPress={handleSaveApiUrl}
+                  />
+                </Card>
+              )}
+
+              <Text style={styles.footerNote}>
+                MiniLedger • Secure personal loan tracking
+              </Text>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -195,141 +290,236 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.xxl,
-    justifyContent: 'center',
-    flexGrow: 1,
   },
-  brandContainer: {
+  desktopScrollContent: {
+    paddingHorizontal: SPACING.xxxl,
+    paddingVertical: SPACING.huge,
+  },
+  container: {
+    width: '100%',
+    alignSelf: 'center',
+    maxWidth: 440,
+  },
+  desktopContainer: {
+    maxWidth: 960,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.xxl,
+    justifyContent: 'space-between',
+    gap: 56,
+  },
+  brandSection: {
+    alignItems: 'center',
+    marginBottom: SPACING.xl,
+  },
+  desktopBrandSection: {
+    flex: 1,
+    alignItems: 'flex-start',
+    marginBottom: 0,
+    paddingRight: SPACING.xl,
   },
   logoBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: RADIUS.xl,
+    width: 54,
+    height: 54,
+    borderRadius: RADIUS.lg,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.md,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    ...SHADOWS.raised,
   },
   brandTitle: {
     fontSize: 28,
     fontWeight: '800',
     color: COLORS.navy,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   tagline: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: COLORS.primary,
-    marginTop: SPACING.xs,
+    marginTop: 6,
   },
   subtext: {
     fontSize: 14,
     color: COLORS.textSecondary,
     textAlign: 'center',
-    marginTop: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    lineHeight: 20,
+    marginTop: 10,
+    lineHeight: 22,
+    maxWidth: 380,
+  },
+  featureList: {
+    marginTop: SPACING.xxl,
+    gap: SPACING.lg,
+    width: '100%',
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+  },
+  featureIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primaryLight,
+    borderWidth: 1,
+    borderColor: COLORS.primaryBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featureContent: {
+    flex: 1,
+  },
+  featureTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.navy,
+  },
+  featureDesc: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  formSection: {
+    width: '100%',
+  },
+  desktopFormSection: {
+    width: 440,
+    flexShrink: 0,
   },
   card: {
-    padding: SPACING.xl,
+    padding: SPACING.xxl,
+    borderRadius: RADIUS.xxl,
+  },
+  cardHeader: {
+    marginBottom: SPACING.lg,
+  },
+  eyebrowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  eyebrowDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.primary,
+  },
+  eyebrowText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    color: COLORS.primary,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.xs,
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.navy,
+    letterSpacing: -0.5,
   },
   cardSubtitle: {
     fontSize: 13,
     color: COLORS.textSecondary,
-    marginBottom: SPACING.lg,
-    lineHeight: 18,
-  },
-  countryCode: {
-    paddingRight: SPACING.sm,
-    borderRightWidth: 1,
-    borderRightColor: COLORS.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  countryCodeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-  },
-  sendButton: {
-    marginTop: SPACING.xs,
-    marginBottom: SPACING.lg,
+    marginTop: 6,
+    lineHeight: 19,
   },
   serverErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     backgroundColor: COLORS.overdueBg,
     borderColor: COLORS.overdueBorder,
     borderWidth: 1,
     borderRadius: RADIUS.md,
     padding: SPACING.md,
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.md,
+  },
+  alertIcon: {
+    marginRight: 8,
+    marginTop: 2,
   },
   serverErrorText: {
+    flex: 1,
     color: COLORS.overdue,
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
     lineHeight: 18,
   },
-  mockOtpNotice: {
+  countryCodeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingRight: 10,
+    borderRightWidth: 1,
+    borderRightColor: COLORS.border,
+  },
+  countryFlag: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: COLORS.primary,
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  countryCodeText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.navy,
+  },
+  sendButton: {
+    marginTop: 6,
+    marginBottom: SPACING.lg,
+  },
+  devNoticeCard: {
     backgroundColor: COLORS.primaryLight,
     borderRadius: RADIUS.md,
     padding: SPACING.md,
     borderWidth: 1,
-    borderColor: '#99F6E4',
+    borderColor: COLORS.primaryBorder,
   },
-  mockOtpHeader: {
+  devNoticeHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
     marginBottom: 4,
   },
-  noticeIcon: {
-    marginRight: 6,
-  },
-  mockOtpTitle: {
-    fontSize: 13,
+  devNoticeTitle: {
+    fontSize: 12,
     fontWeight: '700',
     color: COLORS.primaryDark,
   },
-  mockOtpDescription: {
-    fontSize: 12,
-    color: COLORS.navy,
-    lineHeight: 17,
+  devNoticeText: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    lineHeight: 16,
   },
-  settingsSection: {
-    marginTop: SPACING.xxl,
-    alignItems: 'center',
-  },
-  settingsToggle: {
+  configToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.sm,
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: SPACING.md,
   },
-  settingsToggleText: {
+  configToggleText: {
     fontSize: 12,
     color: COLORS.textSecondary,
-    marginLeft: 6,
-    textDecorationLine: 'underline',
+    fontWeight: '600',
   },
-  configBox: {
-    width: '100%',
-    backgroundColor: COLORS.card,
+  configCard: {
     padding: SPACING.md,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginTop: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  footerNote: {
+    textAlign: 'center',
+    fontSize: 11,
+    color: COLORS.textMuted,
+    paddingTop: 4,
   },
 });

@@ -4,11 +4,13 @@ import { COLORS, RADIUS, SHADOWS, SPACING } from '../constants/theme';
 
 export interface CardProps extends ViewProps {
   elevated?: boolean;
+  bordered?: boolean;
 }
 
 export const Card: React.FC<CardProps> = ({
   children,
   elevated = false,
+  bordered = true,
   style,
   ...rest
 }) => {
@@ -16,6 +18,7 @@ export const Card: React.FC<CardProps> = ({
     <View
       style={[
         styles.card,
+        bordered && styles.cardBordered,
         elevated ? SHADOWS.raised : SHADOWS.card,
         style,
       ]}
@@ -29,8 +32,10 @@ export const Card: React.FC<CardProps> = ({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.card,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xl,
+  },
+  cardBordered: {
     borderWidth: 1,
     borderColor: COLORS.border,
   },
