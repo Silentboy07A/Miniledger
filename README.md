@@ -1,4 +1,4 @@
-# MiniLedger 💳
+# MiniLedger 
 
 > Personal loan and ledger tracking application designed for tracking money lent to friends and peers, managing repayment schedules, and monitoring overdue balances with confidence.
 
